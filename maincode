@@ -1,0 +1,372 @@
+import random
+import operator
+import xlwings as xw
+from itertools import combinations
+#產生52張牌(4花色，13數字)
+def auto():
+    pokers=[]
+    poker=[]
+    for i in ['♥','♠','♦','♣']:
+        for j in [1, 2 , 3 , 4 , 5, 6 , 7 , 8 , 9 , 10 ,11,12,13]:
+            poker.append(i)
+            poker.append(j)
+            pokers.append(poker)
+            poker=[]
+    return pokers
+#取牌組花色為串列
+def color_lst(cards):
+    color = []
+    for i in cards:
+        color.append(i[0])
+    return color
+#取牌組數字為串列    
+def num_lst(cards):
+    num = []
+    for i in range(0,len(cards)):
+        num.append(cards[i][1])
+    num.sort()
+    return num    
+#判斷順子
+def judge_straight(cards):
+    cards_num = num_lst(cards)
+    cards_num.sort()
+    return (max(cards_num)-min(cards_num)) == 4 and len(set(cards_num)) == 5
+#判斷同花
+def judge_flush(cards):
+    cards_color = color_lst(cards)
+    return len(set(cards_color)) == 1
+#判斷有幾張牌數字相同
+def judge_kind(n,cards):
+    lst = []
+    cards_num = num_lst(cards)
+    cards_num.sort()
+    for r in cards_num:
+        if cards_num.count(r)==n:
+            lst.append(r)
+            lst.sort()
+    if lst == []:
+        return lst
+    else:
+        return lst
+
+#判斷牌組，評等
+def judge_best(cards):
+    cards_num = num_lst(cards)
+    cards_num.sort()
+    cards_color = color_lst(cards)
+    if cards_num == [1,10,11,12,13] and judge_flush(cards) == True:
+        rank = 9
+        rank_name = "皇家同花順"
+    elif judge_straight(cards) == True and judge_flush(cards) == True:
+        rank = 8
+        rank_name = "同花順"
+    elif len(judge_kind(4,cards))== 4 and judge_kind(4,cards)[0] == judge_kind(4,cards)[1] == judge_kind(4,cards)[2] == judge_kind(4,cards)[3]:
+        rank = 7
+        rank_name = "四條"
+    elif len(judge_kind(3,cards))== 3 and len(judge_kind(2,cards))== 2 and judge_kind(3,cards)[0] == judge_kind(3,cards)[1] == judge_kind(3,cards)[2] and judge_kind(2,cards)[0] == judge_kind(2,cards)[1] :
+        rank = 6
+        rank_name = "葫蘆"
+    elif judge_flush(cards) == True:
+        rank = 5
+        rank_name = "同花"
+    elif judge_straight(cards) == True:
+        rank = 4
+        rank_name = "順子"
+    elif len(judge_kind(3,cards))== 3 and judge_kind(3,cards)[0] == judge_kind(3,cards)[1] == judge_kind(3,cards)[2]:
+        rank = 3
+        rank_name = "三條"
+    elif len(judge_kind(2,cards))== 4 and judge_kind(2,cards)[0] == judge_kind(2,cards)[1] and judge_kind(2,cards)[2] == judge_kind(2,cards)[3]:
+        rank = 2
+        rank_name = "兩對"
+    elif len(judge_kind(2,cards))== 2 and judge_kind(2,cards)[0] == judge_kind(2,cards)[1] :
+        rank = 1
+        rank_name = "一對"
+    else :
+        rank = 0
+        rank_name = "高牌"
+    return rank,rank_name
+#比較兩數大小
+def bors(a,b):
+    if a > b:
+        return 1
+    elif a < b :
+        return 2
+    else:
+        return 0
+#
+def ab(a,b,n):
+    if n == 1:
+        return a
+    elif n == 2:
+        return b
+    else:
+        return a
+        
+#牌組等級相同時，比較大小
+def judge_flat(cards_1,cards_2,rank_1,rank_2):
+    cards_1_num = num_lst(cards_1)
+    cards_2_num = num_lst(cards_2)
+    n1 = cards_1_num.count(1)
+    while n1 > 0:
+        cards_1_num.remove(1)
+        cards_1_num.append(14)
+        n1 = cards_1_num.count(1)
+    n2 = cards_2_num.count(1)
+    while n2 > 0:
+        cards_2_num.remove(1)
+        cards_2_num.append(14)
+        n2 = cards_2_num.count(1)
+    cards_1_num.sort()
+    cards_2_num.sort()
+    rank_1 = judge_best(cards_1)[0]
+    rank_2 = judge_best(cards_2)[0]
+    if rank_1 == rank_2 == 9:
+        winner = cards_1
+    elif  rank_1 == rank_2 == 8:
+        w = bors(cards_1_num[4],cards_2_num[4])
+        winner = ab(cards_1,cards_2,w)
+    elif  rank_1 == rank_2 == 7:
+        n = bors(judge_kind(4,cards_1)[0],judge_kind(4,cards_2)[0])
+        if n == 0:
+            w = bors(judge_kind(1,cards_1),judge_kind(1,cards_2))
+            winner = ab(cards_1,cards_2,w)
+        else :
+            w = n
+            winner = ab(cards_1,cards_2,w)
+    elif  rank_1 == rank_2 == 6:
+        n = bors(judge_kind(3,cards_1)[0],judge_kind(3,cards_2)[0])
+        if n == 0:
+            w = bors(judge_kind(2,cards_1)[0],judge_kind(2,cards_2)[0])
+            winner = ab(cards_1,cards_2,w)
+        else:
+            w = n
+            winner = ab(cards_1,cards_2,w)
+    elif  rank_1 == rank_2 == 5:
+        n_4 = bors(cards_1_num[4],cards_2_num[4])
+        n_3 = bors(cards_1_num[3],cards_2_num[3])
+        n_2 = bors(cards_1_num[2],cards_2_num[2])
+        n_1 = bors(cards_1_num[1],cards_2_num[1])
+        n_0 = bors(cards_1_num[0],cards_2_num[0])
+        if n_4 != 0:
+            w = n_4
+            winner = ab(cards_1,cards_2,w)
+        else :
+            if n_3 != 0:
+                w = n_3
+                winner = ab(cards_1,cards_2,w)
+            else :
+                if n_2 != 0:
+                    w = n_2
+                    winner = ab(cards_1,cards_2,w)
+                else :
+                    if n_1 != 0:
+                        w = n_1
+                        winner = ab(cards_1,cards_2,w)
+                    else :
+                        w = n_0
+                        winner = ab(cards_1,cards_2,w)
+    elif  rank_1 == rank_2 == 4:
+        w = bors(cards_1_num[4],cards_2_num[4])
+        winner = ab(cards_1,cards_2,w)
+    elif  rank_1 == rank_2 == 3:
+        n = bors(judge_kind(3,cards_1)[0],judge_kind(3,cards_2)[0])
+        if n == 0:
+            n= bors(judge_kind(1,cards_1)[1],judge_kind(1,cards_2)[1])
+            if n == 0:
+                w = bors(judge_kind(1,cards_1)[0],judge_kind(1,cards_2)[0])
+                winner = ab(cards_1,cards_2,w)
+            else:
+                w = n
+                winner = ab(cards_1,cards_2,w)
+        else :
+            w = n
+            winner = ab(cards_1,cards_2,w)
+    elif  rank_1 == rank_2 == 2:
+        n = bors(judge_kind(2,cards_1)[3],judge_kind(2,cards_2)[3])
+        if n == 0:
+            n = bors(judge_kind(2,cards_1)[0],judge_kind(2,cards_2)[0])
+            if n == 0:
+                w = bors(judge_kind(1,cards_1)[0],judge_kind(1,cards_2)[0])
+                winner = ab(cards_1,cards_2,w)
+            else:
+                w = n
+                winner = ab(cards_1,cards_2,w)
+        else :
+            w = n
+            winner = ab(cards_1,cards_2,w)
+    elif  rank_1 == rank_2 == 1:
+        n = bors(judge_kind(2,cards_1)[0],judge_kind(2,cards_2)[0])
+        if n == 0:
+            n_2 = bors(judge_kind(1,cards_1)[2],judge_kind(1,cards_2)[2])
+            n_1 = bors(judge_kind(1,cards_1)[1],judge_kind(1,cards_2)[1])
+            n_0 = bors(judge_kind(1,cards_1)[0],judge_kind(1,cards_2)[0])
+            if n_2 == 0:
+                if n_1 == 0:
+                    w = n_0
+                    winner = ab(cards_1,cards_2,w)
+                else:
+                    w = n_1
+                    winner = ab(cards_1,cards_2,w)
+            else :
+                w = n_2
+                winner = ab(cards_1,cards_2,w)
+        else :
+            w = n
+            winner = ab(cards_1,cards_2,w)
+    else :
+        i = 4
+        while i>0:
+            n = bors(cards_1_num[i],cards_2_num[i])
+            if n != 0:
+                w = n
+                winner = ab(cards_1,cards_2,w)
+                break
+            else :
+                i = i-1
+        if i == 0:
+            winner = cards_1
+    n3 = cards_1_num.count(14)
+    while n3 > 0:
+        cards_1_num.remove(14)
+        cards_1_num.append(1)
+        n3 = cards_1_num.count(14)
+    n4 = cards_2_num.count(14)
+    while n4 > 0:
+        cards_2_num.remove(14)
+        cards_2_num.append(1)
+        n4 = cards_2_num.count(14)
+    cards_1_num.sort()
+    cards_2_num.sort()
+    return winner
+#結合兩種評等
+def judge_final(cards_1,cards_2):
+    cards_1_color = color_lst(cards_1)
+    cards_1_num = num_lst(cards_1)
+    cards_2_color = color_lst(cards_2)
+    cards_2_num = num_lst(cards_2)
+    rank_1 = judge_best(cards_1)[0]
+    rank_2 = judge_best(cards_2)[0]
+    if rank_1 == rank_2:
+        winner = judge_flat(cards_1,cards_2,rank_1,rank_2)
+    elif rank_1 > rank_2 :
+        winner = cards_1
+    elif rank_1 < rank_2:
+        winner = cards_2
+    return winner
+#兩個牌組比較
+def pvp(cards_1):
+    n = len(cards_1)
+    winner = judge_final(cards_1[0],cards_1[1])
+    while n > 0:
+        winner = judge_final(winner,cards_1[n-1])
+        n = n-1
+    return winner
+        
+#找出2張公牌，5張公牌的最佳組
+def find_the_best(cards_1,cards_2):
+    player_set = []
+    for i in range(0,10):
+        player_set.append([cards_1[0],cards_1[1],cards_2[i][0],cards_2[i][1],cards_2[i][2]])
+    player_final_best = pvp(player_set)
+    return player_final_best
+poker = auto()
+random.shuffle(poker)
+player_amount = 6
+deal_num = player_amount * 2
+#AI_player_num = 5
+#每位玩家2張牌
+deal_lst = random.sample(poker,deal_num)
+deal_lst_1 = deal_lst[0:player_amount]
+deal_lst_2 = deal_lst[player_amount:deal_num]
+#將發出的牌從串列中移除
+for i in range(0,6):
+    poker.remove(deal_lst[i])
+player_hand = [deal_lst_1[0],deal_lst_2[0]]
+AI_player_1 = [deal_lst_1[1],deal_lst_2[1]]
+AI_player_2 = [deal_lst_1[2],deal_lst_2[2]]
+AI_player_3 = [deal_lst_1[3],deal_lst_2[3]]
+AI_player_4  = [deal_lst_1[4],deal_lst_2[4]]
+AI_player_5 = [deal_lst_1[5],deal_lst_2[5]]
+AI_player = [AI_player_1,AI_player_2,AI_player_3,AI_player_4,AI_player_5]
+#import excel
+    
+wb = xw.Book("Poker.xlsx")
+sheet = wb.sheets["WinRate"]
+
+for i in range(2,15):
+    if player_hand[0][1] == sheet.cells(1 ,i).value:
+        wincolumn = i
+for i in range(2,15):
+    if player_hand[1][1] == sheet.cells(i,1).value:
+        winrow = i
+winrate = sheet.cells(winrow ,wincolumn).value
+print("您的手牌:")
+print(player_hand[0],player_hand[1])
+print(f"您手牌的勝率為 {winrate:.2%}")
+
+#隨機選出5張公牌
+flop_deal = random.sample(poker,5)
+flop_1 = flop_deal[0]
+flop_2 = flop_deal[1]
+flop_3 = flop_deal[2]
+flop_4 = flop_deal[3]
+flop_5 = flop_deal[4]
+flop_lst = [flop_1,flop_2,flop_3,flop_4,flop_5]
+
+#計算前5張牌最佳組合
+player_flop = [player_hand[0],player_hand[1],flop_1,flop_2,flop_3]
+player_best = judge_best(player_flop)
+print("您目前最佳牌組為 :",player_best[1]," ",player_flop[0],player_flop[1],player_flop[2],player_flop[3],player_flop[4])
+pf = input('請問您要 "r"aise / "c"heck / "f"old  ')
+#手牌與5張公牌組合
+#將5張公牌分為每3張一組
+flop_set = list(combinations(flop_lst,3))
+
+#找出7選5的最佳組
+player_final_best = find_the_best(player_hand,flop_set)
+player_final_rank = judge_best(player_final_best)
+print("您最終的最佳牌組為 :" ,player_final_rank[1]," ",player_final_best[0],player_final_best[1],player_final_best[2],player_final_best[3],player_final_best[4])
+
+AI_best_set_1 = find_the_best(AI_player_1,flop_set)
+AI_best_set_2 = find_the_best(AI_player_2,flop_set)
+AI_best_set_3 = find_the_best(AI_player_3,flop_set)
+AI_best_set_4 = find_the_best(AI_player_4,flop_set)
+AI_best_set_5 = find_the_best(AI_player_5,flop_set)
+everyone_best = [player_final_best,AI_best_set_1,AI_best_set_2,AI_best_set_3,AI_best_set_4,AI_best_set_5]
+winner_1 = judge_final(player_final_best,AI_best_set_1)
+winner_2 = judge_final(winner_1,AI_best_set_2)
+winner_3 = judge_final(winner_2,AI_best_set_3)
+winner_4 = judge_final(winner_3,AI_best_set_4)
+final_winner = judge_final(winner_4,AI_best_set_5)
+if pf == "f":
+    print("您已經蓋牌")
+    if final_winner == player_final_best:
+        print("您本來是最終贏家 !!")
+    elif final_winner == AI_best_set_1:
+        print("AI_1 用",AI_best_set_1," 得到最終勝利 !")
+    elif final_winner == AI_best_set_2:
+        print("AI_2 用",AI_best_set_2," 得到最終勝利 !")
+    elif final_winner == AI_best_set_1:
+        print("AI_3 用",AI_best_set_3," 得到最終勝利 !")
+    elif final_winner == AI_best_set_1:
+        print("AI_4 用",AI_best_set_4," 得到最終勝利 !")
+    elif final_winner == AI_best_set_1:
+        print("AI_5 用",AI_best_set_5," 得到最終勝利 !")
+    else :
+        print("平手")
+else:
+    if final_winner == player_final_best:
+        print("您是最終贏家 !!")
+    elif final_winner == AI_best_set_1:
+        print("AI_1 用",AI_best_set_1," 得到最終勝利 !")
+    elif final_winner == AI_best_set_2:
+        print("AI_2 用",AI_best_set_2," 得到最終勝利 !")
+    elif final_winner == AI_best_set_1:
+        print("AI_3 用",AI_best_set_3," 得到最終勝利 !")
+    elif final_winner == AI_best_set_1:
+        print("AI_4 用",AI_best_set_4," 得到最終勝利 !")
+    elif final_winner == AI_best_set_1:
+        print("AI_5 用",AI_best_set_5," 得到最終勝利 !")
+    else :
+        print("平手")
+    
